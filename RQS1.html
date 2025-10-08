@@ -1,0 +1,282 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Resume Quality Analyzer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #83a4d4, #b6fbff);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 20px;
+    }
+
+    .container {
+      background: white;
+      max-width: 750px;
+      width: 100%;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+
+    h1 {
+      text-align: center;
+      color: #007bff;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      color: #333;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    #resumeSection {
+      display: none;
+    }
+
+    #result {
+      margin-top: 30px;
+      background: #f1faff;
+      border: 2px solid #cce5ff;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    #result h2 {
+      margin-top: 0;
+      color: #343a40;
+    }
+
+    ul {
+      padding-left: 20px;
+      color: #333;
+    }
+
+    .info {
+      background: #e9f7ef;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-left: 5px solid #28a745;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- LOGIN SECTION -->
+    <div id="loginSection">
+      <h1>Welcome! Resume Analyzer</h1>
+      <label for="name">Name</label>
+      <input type="text" id="name" placeholder="Your full name" />
+
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="your@email.com" />
+
+      <label for="branch">Branch</label>
+      <select id="branch">
+        <option value="">Select your branch</option>
+        <option value="cse">Computer Science (CSE)</option>
+        <option value="ece">Electronics (ECE)</option>
+        <option value="mech">Mechanical (MECH)</option>
+        <option value="civil">Civil</option>
+        <option value="eee">Electrical (EEE)</option>
+      </select>
+
+      <button onclick="proceedToResume()">Continue to Resume Analysis</button>
+    </div>
+
+    <!-- RESUME ANALYSIS SECTION -->
+    <div id="resumeSection">
+      <div class="info">
+        <strong>Name:</strong> <span id="displayName"></span><br />
+        <strong>Email:</strong> <span id="displayEmail"></span><br />
+        <strong>Branch:</strong> <span id="displayBranch"></span>
+      </div>
+
+      <label for="resumeText">Paste your resume text:</label>
+      <textarea id="resumeText" placeholder="Paste your resume here..."></textarea>
+      <button id="analyzeBtn">Analyze Resume</button>
+
+      <div id="result" style="display:none;">
+        <h2>Resume Score: <span id="score"></span>/100</h2>
+        <h3>Suggestions:</h3>
+        <ul id="suggestionsList"></ul>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const skillsKeywords = {
+      cse: ['python', 'java', 'c++', 'javascript', 'sql', 'react', 'node', 'ml', 'ai', 'docker', 'html', 'css'],
+      ece: ['vhdl', 'verilog', 'embedded', 'fpga', 'signal processing', 'matlab', 'electronics', 'microcontroller'],
+      mech: ['solidworks', 'autocad', 'thermodynamics', 'mechanics', 'cad', 'cam', 'design', 'ansys'],
+      civil: ['autocad', 'staad', 'estimation', 'construction', 'surveying', 'structural', 'civil 3d'],
+      eee: ['power systems', 'circuit analysis', 'matlab', 'electrical machines', 'proteus', 'switchgear']
+    };
+
+    const sectionKeywords = {
+      education: ['education', 'university', 'college', 'degree', 'bachelor', 'master', 'phd', 'diploma'],
+      experience: ['experience', 'worked', 'internship', 'intern', 'developer', 'engineer', 'manager', 'consultant'],
+      skills: ['skills', 'technical skills', 'proficient', 'expertise', 'knowledge']
+    };
+
+    function cleanText(text) {
+      return text.toLowerCase();
+    }
+
+    function countKeywords(text, keywords) {
+      let count = 0;
+      for (const kw of keywords) {
+        if (text.includes(kw)) count++;
+      }
+      return count;
+    }
+
+    function checkSections(text) {
+      let foundSections = {};
+      for (const [section, keywords] of Object.entries(sectionKeywords)) {
+        foundSections[section] = keywords.some(kw => text.includes(kw));
+      }
+      return foundSections;
+    }
+
+    function estimateYearsExperience(text) {
+      const regex = /(\d+)\s+(years|year|yrs|yr)/g;
+      let match;
+      let maxYears = 0;
+      while ((match = regex.exec(text)) !== null) {
+        const years = parseInt(match[1]);
+        if (years > maxYears) maxYears = years;
+      }
+      return maxYears;
+    }
+
+    function scoreResume(text, branch) {
+      let score = 0;
+      let suggestions = [];
+
+      const clean = cleanText(text);
+      const skillsFound = countKeywords(clean, skillsKeywords[branch] || []);
+      if (skillsFound >= 5) {
+        score += 40;
+      } else if (skillsFound >= 2) {
+        score += 20;
+        suggestions.push("Add more relevant technical skills for your branch.");
+      } else {
+        suggestions.push("Include more domain-specific technical skills.");
+      }
+
+      const sections = checkSections(clean);
+      let sectionScore = 0;
+      if (sections.education) sectionScore += 25; else suggestions.push("Include an Education section.");
+      if (sections.experience) sectionScore += 25; else suggestions.push("Add detailed Work Experience section.");
+      if (sections.skills) sectionScore += 10; else suggestions.push("Add a dedicated Skills section.");
+      score += sectionScore;
+
+      const years = estimateYearsExperience(clean);
+      if (years >= 3) {
+        score += 15;
+      } else if (years > 0) {
+        score += 5;
+        suggestions.push("Highlight more years of experience.");
+      } else {
+        suggestions.push("Mention your years of experience clearly.");
+      }
+
+      if (score > 100) score = 100;
+      return { score, suggestions };
+    }
+
+    function proceedToResume() {
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const branch = document.getElementById('branch').value;
+
+      if (!name || !email || !branch) {
+        alert("Please fill in all login fields.");
+        return;
+      }
+
+      document.getElementById('displayName').textContent = name;
+      document.getElementById('displayEmail').textContent = email;
+      document.getElementById('displayBranch').textContent = branch.toUpperCase();
+
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('resumeSection').style.display = 'block';
+    }
+
+    document.getElementById('analyzeBtn').addEventListener('click', () => {
+      const text = document.getElementById('resumeText').value.trim();
+      const resultDiv = document.getElementById('result');
+      const scoreSpan = document.getElementById('score');
+      const suggestionsList = document.getElementById('suggestionsList');
+      const branch = document.getElementById('branch').value;
+
+      if (!text) {
+        alert('Please paste your resume text.');
+        return;
+      }
+
+      const { score, suggestions } = scoreResume(text, branch);
+
+      scoreSpan.textContent = score;
+
+      suggestionsList.innerHTML = '';
+      if (suggestions.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = "Great resume! No major improvements needed.";
+        suggestionsList.appendChild(li);
+      } else {
+        suggestions.forEach(s => {
+          const li = document.createElement('li');
+          li.textContent = s;
+          suggestionsList.appendChild(li);
+        });
+      }
+
+      resultDiv.style.display = 'block';
+    });
+  </script>
+
+</body>
+</html>
